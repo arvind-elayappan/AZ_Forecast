@@ -1,4 +1,4 @@
-# auto_ts_analysis.py
+# auto_ts_analysis.py and new code
 
 """
 This module automates running a suite of EDA and time‐series tests (including Plotly‐based
