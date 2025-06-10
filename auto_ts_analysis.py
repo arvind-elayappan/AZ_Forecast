@@ -1,5 +1,3 @@
-# auto_ts_analysis.py
-
 """
 This module automates running a suite of EDA and time‐series tests (including Plotly‐based
 seasonality visualizations) on multiple target columns. It imports helper functions from
@@ -26,7 +24,7 @@ After running, you will see:
   - Inline matplotlib plots: raw time series, decomposition, ACF/PACF
   - Inline Plotly figures: overlay seasonality, average seasonality, detrended seasonality
   - A folder "eda_outputs" with saved PNGs of the matplotlib‐based plots
-  - A dictionary `results` containing summary statistics and decomposition objects
+  - A dictionary results containing summary statistics and decomposition objects
 """
 
 import os
@@ -71,14 +69,14 @@ def run_full_analysis(
     df : pd.DataFrame
         DataFrame containing at least one datetime column and numeric columns.
     datetime_col : str
-        Column name in `df` that holds datetime values. Will be converted to index.
+        Column name in df that holds datetime values. Will be converted to index.
     target_cols : list of str
         List of column names to treat as separate time series (e.g., ["zone1", "zone2", "zone3"]).
     other_numeric_cols : list of str, optional
         Additional numeric columns to summarize (e.g., ["temperature", "humidity"]).
     decomposition_period : int, optional
         Periodicity parameter for classical seasonal decomposition (e.g., 7 for weekly). Also used
-        as `block_length` for Plotly‐based seasonality functions. If None, decomposition and Plotly
+        as block_length for Plotly‐based seasonality functions. If None, decomposition and Plotly
         seasonality steps are skipped.
     adf_regression : str, default "c"
         Regression parameter for the ADF test ("c", "ct", "nc").
@@ -91,7 +89,7 @@ def run_full_analysis(
     Returns
     -------
     results_dict : dict
-        A dictionary where each key is a column name from `target_cols` or `other_numeric_cols`.
+        A dictionary where each key is a column name from target_cols or other_numeric_cols.
         For each target column, the sub‐dictionary contains:
           - "decomposition": statsmodels SeasonalDecomposeResult (or None if skipped/failed)
           - "adf": None (stationarity test prints to console)
@@ -104,7 +102,7 @@ def run_full_analysis(
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    # 2) Copy DataFrame and convert `datetime_col` to DatetimeIndex
+    # 2) Copy DataFrame and convert datetime_col to DatetimeIndex
     df_copy = df.copy()
     if datetime_col not in df_copy.columns:
         raise KeyError(f"Datetime column '{datetime_col}' not found in DataFrame.")
@@ -240,7 +238,7 @@ def run_full_analysis(
                 plotly_overlay_seasonality(
                     series,
                     block_length=decomposition_period,
-                    title=f"{col}: {decomposition_period}-Day Overlay Seasonality",
+                    title=f"{col}: {decomposition_period}- Overlay Seasonality",
                 )
             except Exception as e:
                 print(f"Could not plot overlay seasonality for '{col}': {e}")
@@ -254,7 +252,7 @@ def run_full_analysis(
                 plotly_average_seasonality(
                     series,
                     block_length=decomposition_period,
-                    title=f"{col}: {decomposition_period}-Day Average Seasonality",
+                    title=f"{col}: {decomposition_period}- Average Seasonality",
                 )
             except Exception as e:
                 print(f"Could not plot average seasonality for '{col}': {e}")
@@ -268,7 +266,7 @@ def run_full_analysis(
                 plotly_detrended_seasonality(
                     series,
                     block_length=decomposition_period,
-                    title=f"{col}: {decomposition_period}-Day Detrended Seasonality",
+                    title=f"{col}: {decomposition_period}- Detrended Seasonality",
                 )
             except Exception as e:
                 print(f"Could not plot detrended seasonality for '{col}': {e}")

@@ -363,6 +363,24 @@ def plot_acf_pacf(
 # Below is a Plotly‐based function you can add to your eda_tools.py (or any notebook) that will overlay each block of a specified length (e.g. 28 days) as a separate, interactive line.
 
 
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+
+
+def _get_freq(series: pd.Series) -> str:
+    """
+    Infer a uniform frequency string (e.g. 'H','D','M','Q','A') from series.index.
+    Raises if it cannot.
+    """
+    if not isinstance(series.index, pd.DatetimeIndex):
+        series.index = pd.to_datetime(series.index)
+    freq = pd.infer_freq(series.index)
+    if freq is None:
+        raise ValueError(f"Cannot infer a uniform frequency for '{series.name}'.")
+    return freq
+
+
 def plotly_overlay_seasonality(
     series: pd.Series,
     block_length: int,
@@ -372,259 +390,116 @@ def plotly_overlay_seasonality(
     height: int = 500,
 ) -> None:
     """
-    Create an interactive Plotly figure that overlays each 'block_length'-day slice
-    of 'series' on the same set of axes. Hovering shows (day_index, value).
-
-    Parameters
-    ----------
-    series : pd.Series
-        A daily‐indexed Pandas Series (or convertible to daily frequency). Each value
-        should be numeric. The index will be cast to a DatetimeIndex if needed, then
-        resampled to 'D' frequency and interpolated to fill gaps.
-    block_length : int
-        How many days each block should contain. For example, if block_length=28, then
-        the function will split the first (n_blocks * 28) days into rows of length 28.
-    title : str, optional
-        Figure title. If None, defaults to
-        "{block_length}-Day Overlay Seasonality (n_blocks blocks)".
-    line_opacity : float, default 0.6
-        Opacity for each overlaid line (0.0 to 1.0). Lower values make it easier to see
-        where many lines overlap.
-    width : int, default 900
-        Width of the figure in pixels.
-    height : int, default 500
-        Height of the figure in pixels.
+    Overlay each consecutive block of length `block_length` (in the series' own freq units)
+    without detrending.
     """
-    # 1) Prepare a clean, daily‐frequency series
-    if not isinstance(series.index, pd.DatetimeIndex):
-        try:
-            series.index = pd.to_datetime(series.index)
-        except Exception as e:
-            raise TypeError(
-                "Index must be a DatetimeIndex or convertible to datetime."
-            ) from e
-
-    # Sort by date, reindex to fill any missing calendar days, and then interpolate
-    s = series.sort_index().asfreq("D")
-    s = s.interpolate(method="linear").dropna()
-
-    # 2) Determine how many full blocks of length 'block_length' we can extract
+    freq = _get_freq(series)
+    s = series.sort_index().asfreq(freq).interpolate()
     N = len(s)
     n_blocks = N // block_length
     if n_blocks < 1:
-        raise ValueError(
-            f"Series is too short for even one block of length {block_length} days."
-        )
-
-    # 3) Trim to an exact multiple of block_length
+        raise ValueError(f"Need at least {block_length}×{freq} points; only have {N}.")
     trimmed = s.iloc[: n_blocks * block_length]
     arr = trimmed.values.reshape((n_blocks, block_length))
+    x = np.arange(block_length)
 
-    # 4) Build an interactive Plotly figure
     fig = go.Figure()
-
-    # Add one trace per block
     for i in range(n_blocks):
-        y = arr[i]  # values for block i
-        x = np.arange(block_length)  # day‐within‐block: 0,1,...,block_length-1
         fig.add_trace(
             go.Scatter(
                 x=x,
-                y=y,
+                y=arr[i],
                 mode="lines",
                 name=f"Block {i + 1}",
                 opacity=line_opacity,
-                hovertemplate="Day Index: %{x}<br>Value: %{y:.2f}<extra></extra>",
+                hovertemplate=f"{series.name}<br>Idx: %{{x}}<br>Value: %{{y:.2f}}<extra></extra>",
             )
         )
-
-    # 5) Final layout touches
     fig.update_layout(
-        title=title or f"{block_length}-Day Overlay Seasonality ({n_blocks} blocks)",
-        xaxis_title=f"Day Index within {block_length}-Day Block",
-        yaxis_title=series.name or "Value",
+        title=title or f"{series.name}: Raw Overlay ({block_length}×{freq} blocks)",
+        xaxis_title=f"Index within {block_length}×{freq} block",
+        yaxis_title=series.name,
         width=width,
         height=height,
-        legend=dict(title="Block Number", orientation="v", x=1.02, y=1),
-        margin=dict(l=60, r=200, t=60, b=60),
     )
-
     fig.show()
 
 
-# plotly_average_seasonality.py
-# This function computes the average value for each day‐index across all blocks
-# of a specified length in a Pandas Series, then displays an interactive Plotly chart
-# showing that mean curve and a ±1 standard‐deviation band.
 def plotly_average_seasonality(
     series: pd.Series,
-    block_length: int = 91,
+    block_length: int,
     title: str = None,
     width: int = 900,
     height: int = 500,
 ) -> None:
     """
-    Compute the average value for each day‐index (0 through block_length-1)
-    across all consecutive blocks in `series`, then display an interactive
-    Plotly chart showing that mean curve and a ±1 standard‐deviation band.
-
-    Parameters
-    ----------
-    series : pd.Series
-        A Pandas Series indexed by datetime (or convertible to daily). The function
-        will reindex to one row per calendar day (filling any gaps by linear interpolation).
-    block_length : int, default 91
-        Number of days in each “block.” The series will be split into floor(N/91) blocks.
-    title : str, optional
-        Title for the figure. Defaults to
-        "Average {block_length}-Day Seasonality (n={n_blocks} blocks)".
-    width : int, default 900
-        Width of the Plotly figure in pixels.
-    height : int, default 500
-        Height of the Plotly figure in pixels.
+    Compute & plot the mean ±1 std-dev across each position in blocks of length `block_length`
+    in the series' own frequency.
     """
-    # 1) Ensure the index is daily‐frequency and sorted
-    if not isinstance(series.index, pd.DatetimeIndex):
-        try:
-            series.index = pd.to_datetime(series.index)
-        except Exception as e:
-            raise TypeError(
-                "Index must be a DatetimeIndex or convertible to datetime."
-            ) from e
-
-    s = series.sort_index().asfreq("D")  # reindex daily
-    s = s.interpolate(method="linear").dropna()
-
-    # 2) Determine how many full blocks we can extract
+    freq = _get_freq(series)
+    s = series.sort_index().asfreq(freq).interpolate()
     N = len(s)
     n_blocks = N // block_length
     if n_blocks < 1:
-        raise ValueError(
-            f"Series is too short for even one block of length {block_length} days."
-        )
-
-    # 3) Trim off the extra days so that we have an exact multiple of block_length
+        raise ValueError(f"Need at least {block_length}×{freq} points; only have {N}.")
     trimmed = s.iloc[: n_blocks * block_length]
     arr = trimmed.values.reshape((n_blocks, block_length))
 
-    # 4) Compute per-day-of-block mean and standard deviation
-    day_means = arr.mean(axis=0)  # shape = (block_length,)
-    day_stds = arr.std(axis=0)  # shape = (block_length,)
-
+    means = arr.mean(axis=0)
+    stds = arr.std(axis=0)
     x = np.arange(block_length)
 
-    # 5) Build Plotly figure
     fig = go.Figure()
-
-    # (a) Plot the mean line
-    fig.add_trace(
-        go.Scatter(
-            x=x,
-            y=day_means,
-            mode="lines+markers",
-            line=dict(color="blue"),
-            name="Mean",
-            hovertemplate="Day Index: %{x}<br>Mean: %{y:.2f}<extra></extra>",
-        )
-    )
-
-    # (b) Plot the ±1 std-dev shaded area
+    # mean line
+    fig.add_trace(go.Scatter(x=x, y=means, mode="lines+markers", name="Mean"))
+    # ±1 std dev band
     fig.add_trace(
         go.Scatter(
             x=np.concatenate([x, x[::-1]]),
-            y=np.concatenate([day_means + day_stds, (day_means - day_stds)[::-1]]),
+            y=np.concatenate([means + stds, (means - stds)[::-1]]),
             fill="toself",
-            fillcolor="rgba(0, 0, 255, 0.2)",
+            fillcolor="rgba(0,0,255,0.2)",
             line=dict(color="rgba(255,255,255,0)"),
+            name="±1 Std Dev",
             hoverinfo="skip",
-            showlegend=True,
-            name="±1 Std. Dev.",
         )
     )
-
-    # 6) Final layout settings
     fig.update_layout(
-        title=title or f"Average {block_length}-Day Seasonality (n={n_blocks} blocks)",
-        xaxis_title=f"Day Index within {block_length}-Day Block",
-        yaxis_title=series.name or "Value",
+        title=title or f"{series.name}: Average Seasonality ({block_length}×{freq})",
+        xaxis_title=f"Index within {block_length}×{freq} block",
+        yaxis_title=series.name,
         width=width,
         height=height,
-        margin=dict(l=60, r=60, t=60, b=60),
-        legend=dict(x=0.01, y=0.99),
     )
-
     fig.show()
-
-
-# detrended_seasonality.py
-# This function splits a Pandas Series into consecutive blocks of a specified length,
-# subtracts each block’s own mean to “detrend” it, and then overlays the results
 
 
 def plotly_detrended_seasonality(
     series: pd.Series,
-    block_length: int = 7,
+    block_length: int,
     title: str = None,
     line_opacity: float = 0.6,
     width: int = 900,
     height: int = 500,
 ) -> None:
     """
-    Split the input series into consecutive blocks of `block_length` days,
-    subtract each block’s own mean, and overlay the results as interactive Plotly lines
-    so the repeated shape is easy to inspect.
-
-    Parameters
-    ----------
-    series : pd.Series
-        A Pandas Series indexed by datetime (or convertible to daily). This function
-        will reindex it to daily frequency (filling any gaps via linear interpolation).
-    block_length : int, default 7
-        Number of days per block. The series is split into floor(N / block_length) blocks.
-    title : str, optional
-        Title for the plot. If None, defaults to
-        "Detrended {block_length}-Day Seasonality (n={n_blocks} blocks overlaid)".
-    line_opacity : float, default 0.6
-        Opacity of each overlaid line (0.0 to 1.0). Lower values help visualize overlap.
-    width : int, default 900
-        Width of the figure in pixels.
-    height : int, default 500
-        Height of the figure in pixels.
+    Subtract each block’s own mean in blocks of length `block_length` (in series’ freq units),
+    then overlay the demeaned lines.
     """
-    # 1) Ensure the index is a daily‐frequency DatetimeIndex
-    if not isinstance(series.index, pd.DatetimeIndex):
-        try:
-            series.index = pd.to_datetime(series.index)
-        except Exception as e:
-            raise TypeError(
-                "Index must be a DatetimeIndex or convertible to datetime."
-            ) from e
-
-    # Sort by date, reindex to one row per calendar day, then interpolate gaps
-    s = series.sort_index().asfreq("D")
-    s = s.interpolate(method="linear").dropna()
-
-    # 2) Determine how many full blocks we can extract
+    freq = _get_freq(series)
+    s = series.sort_index().asfreq(freq).interpolate()
     N = len(s)
     n_blocks = N // block_length
     if n_blocks < 1:
-        raise ValueError(
-            f"Series is too short for even one block of length {block_length} days."
-        )
-
-    # 3) Trim off any extra days so the length is exactly n_blocks * block_length
+        raise ValueError(f"Need at least {block_length}×{freq} points; only have {N}.")
     trimmed = s.iloc[: n_blocks * block_length]
     arr = trimmed.values.reshape((n_blocks, block_length))
 
-    # 4) Subtract each block’s own mean to “detrend” by block
-    block_means = arr.mean(axis=1).reshape(n_blocks, 1)  # shape = (n_blocks, 1)
-    detrended = arr - block_means  # shape = (n_blocks, block_length)
+    block_means = arr.mean(axis=1).reshape(n_blocks, 1)
+    detrended = arr - block_means
+    x = np.arange(block_length)
 
-    x = np.arange(block_length)  # day indices: 0, 1, ..., block_length-1
-
-    # 5) Build the Plotly figure
     fig = go.Figure()
-
     for i in range(n_blocks):
         fig.add_trace(
             go.Scatter(
@@ -633,11 +508,10 @@ def plotly_detrended_seasonality(
                 mode="lines",
                 name=f"Block {i + 1}",
                 opacity=line_opacity,
-                hovertemplate="Day Index: %{x}<br>Value (detrended): %{y:.2f}<extra></extra>",
+                hovertemplate=f"{series.name}<br>Idx: %{{x}}<br>Value: %{{y:.2f}}<extra></extra>",
             )
         )
-
-    # 6) Add a horizontal zero‐line for reference
+    # zero line
     fig.add_trace(
         go.Scatter(
             x=[0, block_length - 1],
@@ -645,20 +519,13 @@ def plotly_detrended_seasonality(
             mode="lines",
             line=dict(color="black", dash="dash"),
             showlegend=False,
-            hoverinfo="skip",
         )
     )
-
-    # 7) Final layout adjustments
     fig.update_layout(
-        title=title
-        or f"Detrended {block_length}-Day Seasonality ({n_blocks} blocks overlaid)",
-        xaxis_title=f"Day Index within {block_length}-Day Block",
-        yaxis_title=f"{series.name} (demeaned by block)",
+        title=title or f"{series.name}: Detrended Seasonality ({block_length}×{freq})",
+        xaxis_title=f"Index within {block_length}×{freq} block",
+        yaxis_title=series.name,
         width=width,
         height=height,
-        margin=dict(l=60, r=200, t=60, b=60),
-        legend=dict(title="Block Number", orientation="v", x=1.02, y=1),
     )
-
     fig.show()
