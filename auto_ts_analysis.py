@@ -1,3 +1,4 @@
+# auto_ts_analysis.py
 """
 This module automates running a suite of EDA and time‐series tests (including Plotly‐based
 seasonality visualizations) on multiple target columns. It imports helper functions from
