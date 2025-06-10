@@ -570,60 +570,60 @@ def aggregate_time_series(
     return aggregated
 
 
-def get_hourly_aggregation(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
-    """
-    Convenience wrapper to get an hourly‐aggregated DataFrame.
+# def get_hourly_aggregation(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
+#     """
+#     Convenience wrapper to get an hourly‐aggregated DataFrame.
 
-    Equivalent to:
-        aggregate_time_series(df, freq="H", how=how)
+#     Equivalent to:
+#         aggregate_time_series(df, freq="H", how=how)
 
-    Example:
-        hourly_mean_df = get_hourly_aggregation(df, how="mean")
-        hourly_sum_df  = get_hourly_aggregation(df, how="sum")
-    """
-    return aggregate_time_series(df, freq="H", how=how)
-
-
-def get_daily_aggregation(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
-    """
-    Convenience wrapper to get a daily‐aggregated DataFrame.
-
-    Equivalent to:
-        aggregate_time_series(df, freq="D", how=how)
-
-    Example:
-        daily_mean_df = get_daily_aggregation(df, how="mean")
-        daily_sum_df  = get_daily_aggregation(df, how="sum")
-    """
-    return aggregate_time_series(df, freq="D", how=how)
+#     Example:
+#         hourly_mean_df = get_hourly_aggregation(df, how="mean")
+#         hourly_sum_df  = get_hourly_aggregation(df, how="sum")
+#     """
+#     return aggregate_time_series(df, freq="H", how=how)
 
 
-def get_monthly_aggregation(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
-    """
-    Convenience wrapper to get a monthly‐aggregated DataFrame (calendar‐month end).
+# def get_daily_aggregation(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
+#     """
+#     Convenience wrapper to get a daily‐aggregated DataFrame.
 
-    Equivalent to:
-        aggregate_time_series(df, freq="M", how=how)
+#     Equivalent to:
+#         aggregate_time_series(df, freq="D", how=how)
 
-    Example:
-        monthly_max_df   = get_monthly_aggregation(df, how="max")
-        monthly_median_df = get_monthly_aggregation(df, how="median")
-    """
-    return aggregate_time_series(df, freq="M", how=how)
+#     Example:
+#         daily_mean_df = get_daily_aggregation(df, how="mean")
+#         daily_sum_df  = get_daily_aggregation(df, how="sum")
+#     """
+#     return aggregate_time_series(df, freq="D", how=how)
 
 
-def get_yearly_aggregation(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
-    """
-    Convenience wrapper to get a yearly‐aggregated DataFrame (calendar‐year end).
+# def get_monthly_aggregation(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
+#     """
+#     Convenience wrapper to get a monthly‐aggregated DataFrame (calendar‐month end).
 
-    Equivalent to:
-        aggregate_time_series(df, freq="Y", how=how)
+#     Equivalent to:
+#         aggregate_time_series(df, freq="M", how=how)
 
-    Example:
-        yearly_sum_df = get_yearly_aggregation(df, how="sum")
-        yearly_min_df = get_yearly_aggregation(df, how="min")
-    """
-    return aggregate_time_series(df, freq="Y", how=how)
+#     Example:
+#         monthly_max_df   = get_monthly_aggregation(df, how="max")
+#         monthly_median_df = get_monthly_aggregation(df, how="median")
+#     """
+#     return aggregate_time_series(df, freq="M", how=how)
+
+
+# def get_yearly_aggregation(df: pd.DataFrame, how: str = "mean") -> pd.DataFrame:
+#     """
+#     Convenience wrapper to get a yearly‐aggregated DataFrame (calendar‐year end).
+
+#     Equivalent to:
+#         aggregate_time_series(df, freq="Y", how=how)
+
+#     Example:
+#         yearly_sum_df = get_yearly_aggregation(df, how="sum")
+#         yearly_min_df = get_yearly_aggregation(df, how="min")
+#     """
+#     return aggregate_time_series(df, freq="Y", how=how)
 
 
 # ------------------------------------------------------------
